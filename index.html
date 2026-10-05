@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Assistant – Migrate Existing Users (prototype)</title>
+<style>
+:root {
+	--primary-50:#fafafc; --primary-100:#e8eefd; --primary-200:#b9cdf9; --primary-500:#2563eb; --primary-600:#134fd2; --primary-700:#0f3ea3;
+	--gray-50:#F7FAFC; --gray-100:#EDF2F7; --gray-200:#E2E8F0; --gray-300:#CBD5E0; --gray-500:#718096; --gray-600:#4A5568; --gray-700:#2D3748; --gray-800:#1A202C;
+	--green-50:#F0FFF4; --green-500:#38A169; --green-700:#276749;
+	--wp-bg:#f0f0f1;
+}
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; background:var(--wp-bg); color:var(--gray-800); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:1.5; }
+
+/* prototype-only bar */
+.proto { position:sticky; top:0; z-index:10; display:flex; flex-wrap:wrap; gap:12px 20px; align-items:center; padding:10px 24px; background:#fffbe6; border-bottom:1px dashed #d6b656; font-size:13px; color:#6b5a1e; }
+.proto b { font-weight:600; }
+.seg { display:inline-flex; border:1px solid #d6b656; border-radius:6px; overflow:hidden; }
+.seg button { border:0; background:transparent; padding:4px 12px; cursor:pointer; font:inherit; color:inherit; }
+.seg button.on { background:#d6b656; color:#fff; }
+.proto .link { background:none; border:0; text-decoration:underline; cursor:pointer; font:inherit; color:inherit; padding:0; }
+
+.page { max-width:860px; margin:0 auto; padding:32px 24px 80px; }
+.page-head { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; }
+.page-head h1 { margin:0; font-size:24px; font-weight:600; }
+.page-head p { margin:4px 0 0; color:var(--gray-600); font-size:15px; }
+.progress { text-align:right; font-size:13px; color:var(--gray-600); }
+.bar { width:180px; height:6px; background:var(--gray-200); border-radius:99px; overflow:hidden; margin-top:6px; margin-left:auto; }
+.bar > i { display:block; height:100%; background:var(--primary-500); border-radius:99px; transition:width .4s; }
+
+.stack { display:flex; flex-direction:column; gap:16px; }
+.card { background:#fff; border:1px solid var(--gray-100); border-radius:6px; padding:24px; }
+.card-head { display:flex; justify-content:space-between; align-items:center; cursor:pointer; gap:12px; }
+.card.open .card-head { border-bottom:1px solid #dcdcde; padding-bottom:20px; }
+.card-head h3 { margin:0; font-size:18px; font-weight:600; line-height:1.2; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.chev { width:24px; height:24px; flex:none; transition:transform .2s; fill:#000; }
+.card.open .chev { transform:rotate(180deg); fill:var(--primary-500); }
+.card-body { display:none; padding-top:20px; }
+.card.open .card-body { display:block; }
+.badge { font-size:12px; font-weight:500; padding:2px 8px; border-radius:99px; background:var(--primary-100); color:var(--primary-700); }
+.badge.done { background:var(--green-50); color:var(--green-700); }
+.lead { margin:0 0 20px; font-weight:300; font-size:15px; color:var(--gray-700); }
+
+/* form controls */
+.label { display:block; font-size:15px; font-weight:500; margin-bottom:8px; }
+.field { margin-bottom:20px; }
+select, input[type=text], input[type=email] { width:100%; max-width:100%; height:40px; padding:0 12px; border:1px solid var(--gray-300); border-radius:6px; font:inherit; font-size:15px; background:#fff; color:var(--gray-800); }
+select:focus, input[type=text]:focus, input[type=email]:focus { outline:none; border-color:var(--primary-500); box-shadow:0 0 0 1px var(--primary-500); }
+.fixed-form { display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:6px; font-size:15px; }
+.fixed-form svg { flex:none; fill:var(--primary-500); }
+.fixed-form small { color:var(--gray-600); font-size:13px; margin-left:auto; }
+
+/* scope options */
+.opts { display:grid; gap:10px; margin-bottom:20px; }
+.opt { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; background:#f9fafc; border:1px solid transparent; border-radius:6px; cursor:pointer; transition:border-color .15s, background .15s; }
+.opt:hover { border-color:var(--gray-200); }
+.opt.sel { border-color:var(--primary-500); background:var(--primary-50); box-shadow:0 0 0 1px var(--primary-500); }
+.opt input { margin:3px 0 0; accent-color:var(--primary-500); width:16px; height:16px; flex:none; }
+.opt strong { display:block; font-size:15px; font-weight:600; }
+.opt span { color:var(--gray-600); font-size:14px; }
+.opt-extra { margin-top:12px; }
+.opt-extra[hidden] { display:none; }
+
+/* role chips + selective link */
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1px solid var(--gray-300); border-radius:99px; background:#fff; cursor:pointer; font-size:14px; user-select:none; }
+.chip:hover { border-color:var(--primary-500); }
+.chip input { accent-color:var(--primary-500); width:15px; height:15px; margin:0; }
+.chip.on { border-color:var(--primary-500); background:var(--primary-100); color:var(--primary-700); }
+.chip small { color:var(--gray-500); font-size:12px; }
+a.btn { text-decoration:none; }
+.hint { margin:10px 0 0 !important; font-size:13px; color:var(--gray-600); }
+.opt { cursor:pointer; }
+.opt-extra { cursor:default; }
+/* summary + action */
+.notice { border-left:4px solid var(--primary-500); background:#eef5ff; padding:12px 16px; border-radius:0 6px 6px 0; margin-bottom:20px; }
+.notice p { margin:0; font-size:15px; }
+.notice p b { color:var(--primary-700); }
+.notice small { color:var(--gray-600); font-size:13px; }
+.btn { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 18px; border:0; border-radius:6px; background:var(--primary-500); color:#fff; font:inherit; font-size:14px; font-weight:500; cursor:pointer; }
+.btn:hover:not(:disabled) { background:var(--primary-600); }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.btn.ghost { background:none; color:var(--gray-600); }
+.btn.ghost:hover:not(:disabled) { background:var(--gray-100); }
+.actions { display:flex; gap:10px; align-items:center; }
+.spin { width:14px; height:14px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; }
+@keyframes sp { to { transform:rotate(360deg); } }
+
+/* migrating + success */
+.running[hidden], .success[hidden], .setup[hidden] { display:none; }
+.meter { height:8px; background:var(--gray-200); border-radius:99px; overflow:hidden; margin:12px 0 8px; }
+.meter i { display:block; height:100%; width:0; background:var(--primary-500); transition:width .15s; }
+.running p { margin:0; font-size:15px; }
+.running small { color:var(--gray-600); }
+.success { display:flex; gap:14px; align-items:flex-start; background:var(--green-50); border:1px solid #c6f6d5; border-radius:6px; padding:16px; }
+.success svg { flex:none; fill:var(--green-500); }
+.success p { margin:0; font-size:15px; }
+.success small { color:var(--gray-600); }
+
+.collapsed-demo h3 { color:var(--gray-800); }
+.toast { position:fixed; right:24px; bottom:24px; background:#276749; color:#fff; padding:12px 18px; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.18); transform:translateY(20px); opacity:0; transition:.25s; pointer-events:none; max-width:360px; }
+.toast.show { transform:none; opacity:1; }
+.toast b { display:block; }
+@media (max-width:600px) { .page-head { flex-direction:column; align-items:flex-start; gap:12px; } .progress { text-align:left; } .bar { margin-left:0; } }
+</style>
+</head>
+<body>
+
+<div class="proto">
+	<b>Prototype controls</b>
+	<span>Registration forms detected:
+		<span class="seg" id="formSeg"><button data-n="1">1 form</button><button data-n="3" class="on">3 forms</button></span>
+	</span>
+	<button class="link" id="resetBtn">Reset demo</button>
+</div>
+
+<div class="page">
+	<div class="page-head">
+		<div>
+			<h1>Site Assistant</h1>
+			<p>Finish these recommended steps to get your site ready.</p>
+		</div>
+		<div class="progress"><span id="progText">2 of 4 steps done</span><div class="bar"><i id="progBar" style="width:50%"></i></div></div>
+	</div>
+
+	<div class="stack">
+		<!-- context cards, collapsed -->
+		<div class="card collapsed-demo" data-static>
+			<div class="card-head"><h3>1) Send Test Email <span class="badge done">Done</span></h3><svg class="chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></div>
+		</div>
+		<div class="card collapsed-demo" data-static>
+			<div class="card-head"><h3>2) Spam Protection <span class="badge done">Done</span></h3><svg class="chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></div>
+		</div>
+
+		<!-- the new card -->
+		<div class="card open" id="migrateCard">
+			<div class="card-head" id="migrateHead">
+				<h3>3) Migrate Existing Users <span class="badge" id="statusBadge">10,240 pending</span></h3>
+				<svg class="chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+			</div>
+			<div class="card-body">
+
+				<div class="setup" id="setup">
+					<p class="lead">Your site already has users who signed up before User Registration &amp; Membership was installed. Migrate them so they can view and edit your registration form fields on their profile.</p>
+
+					<!-- Form: dropdown when >1, fixed when 1 -->
+					<div class="field" id="formField"></div>
+
+					<span class="label">Choose which users to migrate</span>
+					<div class="opts" id="opts">
+						<div class="opt sel" data-v="all">
+							<input type="radio" name="scope" value="all" checked>
+							<div><strong>All Unlinked Users</strong><span id="allDesc">Migrates all 10,240 users currently missing a User Registration form.</span></div>
+						</div>
+						<div class="opt" data-v="role">
+							<input type="radio" name="scope" value="role">
+							<div style="flex:1">
+								<strong>Filter by Role</strong><span>Migrate only unlinked users with the roles you select.</span>
+								<div class="opt-extra" id="roleExtra" hidden>
+									<div class="chips" id="roleChips"></div>
+								</div>
+							</div>
+						</div>
+						<div class="opt" data-v="selective">
+							<input type="radio" name="scope" value="selective">
+							<div style="flex:1">
+								<strong>Selective Users Only</strong><span>Hand-pick the users you want to migrate from the All Users page.</span>
+								<div class="opt-extra" id="selExtra" hidden>
+									<a class="btn" href="http://urm-pro.local/wp-admin/users.php" target="_blank" rel="noopener">Go to All Users
+										<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 3v2h3.6l-9.8 9.8 1.4 1.4L19 6.4V10h2V3zM5 5h6v2H5v12h12v-6h2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg></a>
+									<p class="hint">Select the users there, then use the <b>Connect with form&hellip;</b> bulk action.</p>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="notice" id="noticeBox"><p id="summary"></p><small>Processed safely in small batches to prevent server timeouts.</small></div>
+
+					<div class="actions" id="actionsBox"><button class="btn" id="goBtn"></button></div>
+				</div>
+
+				<div class="running" id="running" hidden>
+					<p><b id="runTitle">Migrating users…</b></p>
+					<div class="meter"><i id="meterBar"></i></div>
+					<small id="runSub">Keep this page open until it finishes.</small>
+				</div>
+
+				<div class="success" id="success" hidden>
+					<svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1.2 14.4L6.6 12.2l1.4-1.4 2.8 2.8 5.2-5.2 1.4 1.4-6.6 6.6z"/></svg>
+					<div>
+						<p id="doneTitle"></p>
+						<small id="doneSub"></small>
+						<div style="margin-top:12px"><button class="btn ghost" id="againBtn" style="border:1px solid var(--gray-300)">Migrate more users</button></div>
+					</div>
+				</div>
+
+			</div>
+		</div>
+
+		<div class="card collapsed-demo" data-static>
+			<div class="card-head"><h3>4) Create Missing Pages <span class="badge done">Done</span></h3><svg class="chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></div>
+		</div>
+	</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const FORMS = [
+	{ id: 101, name: 'Default Registration Form' },
+	{ id: 102, name: 'Customer Signup' },
+	{ id: 103, name: 'Contributor Application' },
+];
+const ROLES = { subscriber: 8120, customer: 1730, contributor: 290, author: 100 };
+
+const TOTAL = Object.values(ROLES).reduce((a, b) => a + b, 0);
+const $ = s => document.querySelector(s);
+const fmt = n => n.toLocaleString('en-US');
+const plural = (n, w) => `${fmt(n)} ${w}${n === 1 ? '' : 's'}`;
+
+let state = { formCount: 3, scope: 'all', roles: new Set(['subscriber']), formId: 101, migrated: 0, running: false };
+
+function remainingTotal() { return TOTAL - state.migrated; }
+function roleCount(r) { return Math.max(0, ROLES[r] - (state.migratedByRole?.[r] || 0)); }
+function targetCount() {
+	if (state.scope === 'all') return remainingTotal();
+	if (state.scope === 'role') return [...state.roles].reduce((a, r) => a + roleCount(r), 0);
+	return 0;
+}
+function activeForm() { return state.formCount === 1 ? FORMS[0] : FORMS.find(f => f.id === state.formId); }
+
+function renderForm() {
+	const el = $('#formField');
+	if (state.formCount === 1) {
+		el.innerHTML = `<span class="label">Registration form</span>
+			<div class="fixed-form"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-9 14H7v-2h3v2zm0-4H7v-2h3v2zm0-4H7V7h3v2zm7 8h-5v-2h5v2zm0-4h-5v-2h5v2zm0-4h-5V7h5v2z"/></svg>
+			<span>Users will be associated with <b>${FORMS[0].name}</b>.</span><small>Only form on this site</small></div>`;
+	} else {
+		el.innerHTML = `<label class="label" for="formSel">Assign users to form</label>
+			<select id="formSel">${FORMS.map(f => `<option value="${f.id}" ${f.id === state.formId ? 'selected' : ''}>${f.name}</option>`).join('')}</select>`;
+		$('#formSel').onchange = e => { state.formId = +e.target.value; renderSummary(); };
+	}
+}
+
+function renderRoles() {
+	$('#roleChips').innerHTML = Object.keys(ROLES).map(r => `
+		<label class="chip ${state.roles.has(r) ? 'on' : ''}"><input type="checkbox" value="${r}" ${state.roles.has(r) ? 'checked' : ''}>
+			<span style="text-transform:capitalize">${r}</span><small>${fmt(roleCount(r))}</small></label>`).join('');
+	$('#roleChips').querySelectorAll('input').forEach(cb => cb.onchange = () => { cb.checked ? state.roles.add(cb.value) : state.roles.delete(cb.value); renderRoles(); renderSummary(); });
+}
+
+function renderSummary() {
+	const n = targetCount(), f = activeForm();
+	$('#allDesc').textContent = `Migrates all ${fmt(remainingTotal())} users currently missing a User Registration form.`;
+	$('#summary').innerHTML = n === 0
+		? (state.scope === 'role' ? 'Select at least one role to migrate.' : 'No users to migrate here.')
+		: `Ready to migrate <b>${plural(n, 'user')}</b>${state.scope === 'role' ? ' in the ' + new Intl.ListFormat('en', { type: 'conjunction' }).format([...state.roles].map(r => r[0].toUpperCase() + r.slice(1))) + (state.roles.size === 1 ? ' role' : ' roles') : ''} to <b>${f.name}</b>.`;
+	const sel = state.scope === 'selective';
+	['#formField', '#noticeBox', '#actionsBox'].forEach(q => $(q).hidden = sel);
+	const btn = $('#goBtn');
+	btn.disabled = n === 0 || state.running;
+	btn.textContent = n === 0 ? 'Migrate Users' : `Migrate ${plural(n, 'User')}`;
+	$('#statusBadge').textContent = remainingTotal() === 0 ? 'Done' : `${fmt(remainingTotal())} pending`;
+	$('#statusBadge').className = 'badge' + (remainingTotal() === 0 ? ' done' : '');
+	const steps = 2 + (remainingTotal() === 0 ? 1 : 0) + 1;
+	$('#progText').textContent = `${steps} of 4 steps done`;
+	$('#progBar').style.width = steps * 25 + '%';
+}
+
+function setScope(v) {
+	state.scope = v;
+	document.querySelectorAll('.opt').forEach(o => { o.classList.toggle('sel', o.dataset.v === v); o.querySelector('input').checked = o.dataset.v === v; });
+	$('#roleExtra').hidden = v !== 'role';
+	$('#selExtra').hidden = v !== 'selective';
+	renderSummary();
+}
+
+function toast(title, sub) {
+	const t = $('#toast'); t.innerHTML = `<b>${title}</b>${sub}`; t.classList.add('show');
+	setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function migrate() {
+	const n = targetCount(), f = activeForm(), scope = state.scope, roles = new Set(state.roles);
+	state.running = true;
+	$('#setup').hidden = true; $('#success').hidden = true; $('#running').hidden = false;
+	$('#runTitle').textContent = `Migrating ${plural(n, 'user')} to ${f.name}…`;
+	let done = 0; const batch = Math.max(1, Math.ceil(n / 25));
+	const tick = setInterval(() => {
+		done = Math.min(n, done + batch);
+		$('#meterBar').style.width = (done / n * 100) + '%';
+		$('#runSub').textContent = `${fmt(done)} of ${fmt(n)} users processed. Keep this page open until it finishes.`;
+		if (done >= n) {
+			clearInterval(tick);
+			state.running = false;
+			state.migrated += n;
+			state.migratedByRole = state.migratedByRole || {};
+			if (scope === 'role') roles.forEach(r => state.migratedByRole[r] = ROLES[r]);
+			if (scope === 'all') { Object.keys(ROLES).forEach(r => state.migratedByRole[r] = ROLES[r]); }
+			$('#running').hidden = true; $('#success').hidden = false;
+			$('#doneTitle').innerHTML = `<b>${plural(n, 'user')} migrated</b> to ${f.name}.`;
+			$('#doneSub').textContent = remainingTotal() === 0 ? 'All existing users now have profile access. Nothing left to migrate.' : `${fmt(remainingTotal())} unlinked users still remain.`;
+			$('#againBtn').style.display = remainingTotal() === 0 ? 'none' : '';
+			$('#meterBar').style.width = '0';
+			renderRoles(); renderSummary();
+			toast('Migration complete', `${plural(n, 'user')} linked to ${f.name}.`);
+		}
+	}, 120);
+}
+
+function reset(keepForms) {
+	const fc = keepForms ?? state.formCount;
+	state = { formCount: fc, scope: 'all', roles: new Set(['subscriber']), formId: 101, migrated: 0, migratedByRole: {}, running: false };
+	$('#setup').hidden = false; $('#running').hidden = true; $('#success').hidden = true;
+	document.querySelectorAll('#formSeg button').forEach(b => b.classList.toggle('on', +b.dataset.n === fc));
+	renderForm(); renderRoles(); setScope('all');
+}
+
+// wiring
+$('#migrateHead').onclick = () => $('#migrateCard').classList.toggle('open');
+document.querySelectorAll('[data-static] .card-head').forEach(h => h.onclick = () => h.parentElement.classList.toggle('open'));
+document.querySelectorAll('.opt').forEach(o => o.onclick = e => { if (!e.target.closest('.opt-extra')) setScope(o.dataset.v); });
+$('#goBtn').onclick = migrate;
+$('#againBtn').onclick = () => { $('#success').hidden = true; $('#setup').hidden = false; };
+$('#resetBtn').onclick = () => reset();
+document.querySelectorAll('#formSeg button').forEach(b => b.onclick = () => reset(+b.dataset.n));
+
+reset(3);
+</script>
+</body>
+</html>
